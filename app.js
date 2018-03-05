@@ -87,4 +87,12 @@ bot.dialog('askForPersonalInfo', [
   }
 ])
 
+<<<<<<< HEAD
 bot.set('storage', tableStorage)
+=======
+bot.dialog('/', function (session) {
+    session.send('You said ' + session.message.text);
+
+    //성환 add
+});
+>>>>>>> 32bc41b7e0f8b53ea811a44a2d55b3c447945c3a
