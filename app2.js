@@ -8,7 +8,6 @@ var botbuilder_azure = require('botbuilder-azure')
 // var peopleNumCard = require('./adaptiveCard/peopleNumberCard.js').card
 var peopleNumCard = require('./adaptiveCard/peopleNumCard_v2.js').card2
 var checkinCard = require('./adaptiveCard/checkinCard.js').card
-var cityCard = require('./adaptiveCard/city.js').card
 
 // Setup Restify Server
 var server = restify.createServer()
@@ -43,30 +42,15 @@ var tableStorage = new botbuilder_azure.AzureBotStorage({ gzipData: false }, azu
 var bot = new builder.UniversalBot(connector, [
   function (session) {
     session.send('안녕하세요 만나서 반갑습니다!')
-    session.beginDialog('askCityInfo')
-    // session.beginDialog('askForPeopleNumber')
-  },
-  function (session, results) {
-    // session.send(`${results.response}`)
-    // next()
-    builder.Prompts.text(session, `${results.response}`)
-  },
-  function (session, results) {
     session.beginDialog('askBeginDate')
-  },
-  function (session, results) {
-    session.send(`체크인 및 체크아웃 일정은 ${results.response}과 같습니다.`)
-    // builder.Prompts.text(session, `체크인 및 체크아웃 일정은 ${results.response}과 같습니다.`)
-    builder.Prompts.choice(session, '예약 일정이 맞습니까? ', '예|아니오', { listStyle: builder.ListStyle.button })
-  },
-  function (session, results) {
-    if (results.response.entity === '예') {
-      session.beginDialog('askForPeopleNumber')
-    } else {
-      session.replaceDialog('askBeginDate', { reprompt: true })
-    }
     // session.beginDialog('askForPeopleNumber')
-    // session.send()
+  },
+  function (session, results, next) {
+    session.send(`체크인 및 체크아웃 일정은 ${results.response}과 같습니다.`)
+    // session.beginDialog('askForPeopleNumber')
+  },
+  function (session) {
+    session.beginDialog('askForPeopleNumber')
   },
   function (session, results) {
     // session.beginDialog('askForPeopleNumber')
@@ -80,36 +64,9 @@ var bot = new builder.UniversalBot(connector, [
     } else {
       // 방을 추가하지 않는 경우
       session.send('검색할 조건은 다음과 같습니다')
-      session.send('검색 조건 나열')
       // 검색 조건 나열
       // 정렬 조건 나열
     }
-  }
-])
-// log any bot errors into the console
-bot.on('error', function (e) {
-  console.log('And error ocurred', e)
-})
-
-bot.dialog('askCityInfo', [
-
-  function (session) {
-      // 기본 버튼  사용
-      // builder.Prompts.choice(session, "Which color?", "red|green|blue", { listStyle: 3 });
-
-    if (session.message && session.message.value) {
-          // A Card's Submit Action obj was received
-      session.endDialogWithResult({ response: session.message.value.cityCode })
-
-          // session.send(session.message.value.cityCode)
-      return
-    }
-      // addAttachment 사용
-    var msg = new builder.Message(session)
-          .addAttachment(cityCard)
-
-      // 전송
-    session.send(msg)
   }
 ])
 
@@ -129,27 +86,6 @@ bot.dialog('askForPeopleNumber', [
   }
 ])
 
-bot.dialog('askForPersonalInfo', [
-  function (session) {
-    builder.Prompts.text(session, '이름이 뭐에요?')
-  },
-  function (session, results) {
-    session.send(`${results.response}님, 만나서 반갑습니다!`)
-    builder.Prompts.text(session, '좋아하는 음식은 무엇인가요?')
-  },
-  function (session, results) {
-    session.send(`${results.response}을/를 즐겨 드시는 군요!`)
-    builder.Prompts.text(session, '최근에 어떤영화 보셨나요?')
-  },
-  function (session, results) {
-    session.send(`저도 ${results.response} 재밌게 봤습니다 :)`)
-    builder.Prompts.text(session, '오늘 저녁에는 뭐하실 건가요?')
-  },
-  function (session, results) {
-    session.endDialogWithResult(results)
-  }
-])
-
 bot.dialog('askBeginDate', [
   function (session) {
     if (session.message && session.message.value) {
@@ -158,7 +94,8 @@ bot.dialog('askBeginDate', [
       var checkinDate = session.message.value.checkinDate
       var checkoutDate = session.message.value.checkoutDate
 
-      session.endDialogWithResult({ response: checkinDate })
+      // session.endDialogWithResult({ response: checkinDate })
+      session.send(checkinDate)
       return
     }
 
