@@ -25,6 +25,7 @@ var connector = new builder.ChatConnector({
 
 // Listen for messages from users
 server.post('/api/messages', connector.listen())
+var isContextChange = false
 
 /* ----------------------------------------------------------------------------------------
 * Bot Storage: This is a great spot to register the private state storage for your bot.
@@ -43,13 +44,12 @@ var tableStorage = new botbuilder_azure.AzureBotStorage({ gzipData: false }, azu
 var bot = new builder.UniversalBot(connector, [
   function (session) {
     session.send('안녕하세요 만나서 반갑습니다!')
-    session.beginDialog('askCityInfo')
+    return session.beginDialog('askCityInfo')
     // session.beginDialog('askForPeopleNumber')
   },
-  function (session, results) {
-    // session.send(`${results.response}`)
-    // next()
-    builder.Prompts.text(session, `${results.response}`)
+  function (session, results, next) {
+    builder.Prompts.text(session, `입력하신 도시는 ${results.response}입니다.`)
+    next()
   },
   function (session, results) {
     session.beginDialog('askBeginDate')
@@ -90,7 +90,15 @@ var bot = new builder.UniversalBot(connector, [
 bot.on('error', function (e) {
   console.log('And error ocurred', e)
 })
-
+bot.on('conversationUpdate', function (message) {
+  if (message.membersAdded) {
+    message.membersAdded.forEach(function (identity) {
+      if (identity.id === message.address.bot.id) {
+        bot.beginDialog(message.address, '/')
+      }
+    })
+  }
+})
 bot.dialog('askCityInfo', [
 
   function (session) {
@@ -129,26 +137,21 @@ bot.dialog('askForPeopleNumber', [
   }
 ])
 
-bot.dialog('askForPersonalInfo', [
+bot.dialog('support', [
   function (session) {
-    builder.Prompts.text(session, '이름이 뭐에요?')
-  },
-  function (session, results) {
-    session.send(`${results.response}님, 만나서 반갑습니다!`)
-    builder.Prompts.text(session, '좋아하는 음식은 무엇인가요?')
-  },
-  function (session, results) {
-    session.send(`${results.response}을/를 즐겨 드시는 군요!`)
-    builder.Prompts.text(session, '최근에 어떤영화 보셨나요?')
-  },
-  function (session, results) {
-    session.send(`저도 ${results.response} 재밌게 봤습니다 :)`)
-    builder.Prompts.text(session, '오늘 저녁에는 뭐하실 건가요?')
-  },
-  function (session, results) {
-    session.endDialogWithResult(results)
+    session.send('고객센터 상담 업무는 02-XXX-XXX로 연락주시기 바랍니다. 감사합니다.')
+    session.endDialog()
   }
 ])
+.triggerAction({
+  matches: [/도와줘/i, /상담사/i, /그만/i],
+  onSelectAction: (session, args, next) => {
+    // Add the help dialog to the dialog stack
+    // (override the default behavior of replacing the stack)
+    session.send('지금까지의 대화 정보가 임시 저장되고, 상담 관련 안내를 진행합니다')
+    session.beginDialog(args.action, args)
+  }
+})
 
 bot.dialog('askBeginDate', [
   function (session) {
