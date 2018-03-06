@@ -1,3 +1,4 @@
+require('dotenv-extended').load()
 
 var restify = require('restify')
 var builder = require('botbuilder')
@@ -23,8 +24,8 @@ var connector = new builder.ChatConnector({
 server.post('/api/messages', connector.listen())
 
 var tableName = 'botdata'
-const connString = 'DefaultEndpointsProtocol=https;AccountName=hanatour9833;AccountKey=6jqh42QQjWWBwoPGGR/Jr0PZjhBMZVbHm/gkhEfHvOj8aV6+oI8ed6ZAAwB5m793WqyQDiduJJB0QpseJwqYxw==;EndpointSuffix=core.windows.net'
-var azureTableClient = new botbuilder_azure.AzureTableClient(tableName, connString)
+// const connString = 'DefaultEndpointsProtocol=https;AccountName=hanatour9833;AccountKey=6jqh42QQjWWBwoPGGR/Jr0PZjhBMZVbHm/gkhEfHvOj8aV6+oI8ed6ZAAwB5m793WqyQDiduJJB0QpseJwqYxw==;EndpointSuffix=core.windows.net'
+var azureTableClient = new botbuilder_azure.AzureTableClient(tableName, process.env.AzureWebJobsStorage)
 var tableStorage = new botbuilder_azure.AzureBotStorage({ gzipData: false }, azureTableClient)
 
 var bot = new builder.UniversalBot(connector, [
@@ -52,8 +53,6 @@ var bot = new builder.UniversalBot(connector, [
     session.send(`체크인:${session.conversationData.CHECKIN} / 체크아웃: ${session.conversationData.CHECKOUT}`)
     // builder.Prompts.text(session, `체크인 및 체크아웃 일정은 ${results.response}과 같습니다.`)
     builder.Prompts.choice(session, '예약 일정이 맞습니까? ', '예|아니오', { listStyle: builder.ListStyle.button })
-
-    // session.send(JSON.stringify(hotelObj));
   },
   function (session, results) {
     if (results.response.entity === '예') {
@@ -61,8 +60,6 @@ var bot = new builder.UniversalBot(connector, [
     } else {
       session.replaceDialog('askBeginDate', { reprompt: true })
     }
-    // session.beginDialog('askForPeopleNumber')
-    // session.send()
   },
   function (session) {
     // var result = results.response
@@ -72,12 +69,6 @@ var bot = new builder.UniversalBot(connector, [
       session.conversationData.CHILD2_OPTION = '선택안함'
     }
     session.send(`${session.conversationData.ADULT_OPTION}, 아이1:${session.conversationData.CHILD1_OPTION}, 아이2:${session.conversationData.CHILD2_OPTION}`)
-
-    // 호텔 인원수 성인  저장
-    //  var adult = session.conversationData.peopleNumOption;
-
-    // session.conversationData.ROOM = result
-
     builder.Prompts.choice(session, '추가로 방을 예약하시겠습니까? ', '예|아니오', { listStyle: builder.ListStyle.button })
   },
   function (session, results, next) {
@@ -106,13 +97,9 @@ bot.on('conversationUpdate', function (message) {
     })
   }
 })
-
-// // Do not persist userData
-// bot.set(`persistUserData`, false)
-
-// // Do not persist conversationData
-// bot.set(`persistConversationData`, false)
-
+const luis = 'https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/e3fd6d0a-9b70-4a1b-ae81-b779db93024a?subscription-key=c4ac39be736d47598ab8ca33b5cccd7c&verbose=true&timezoneOffset=0&q='
+var recognizer = new builder.LuisRecognizer(luis)
+bot.recognizer(recognizer)
 // log any bot errors into the console
 bot.on('error', function (e) {
   console.log('And error ocurred', e)
@@ -149,13 +136,7 @@ bot.dialog('askForPeopleNumber', [
       .addAttachment(peopleNumCard)
     session.send(msg)
   }
-  // function (session) {
-  //   var msg = new builder.Message(session).addAttachment(peopleNumCard)
-  //   session.send(msg)
-  //   builder.Prompts.text(session, '객실 인원 추가 옵션을 선택해주시기 바랍니다')
-  // }, function (session, results) {
-  //   console.log(results)
-  // }
+
 ])
 
 bot.dialog('askBeginDate', [
@@ -174,3 +155,79 @@ bot.dialog('askBeginDate', [
     session.send(msg)
   }
 ])
+
+// Search.All
+// 베트남 호텔에 금연룸으로 검색해줘
+bot.dialog('LUIS_searchAll', [
+  function (session, args) {
+    var countryEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'Country')
+    var checkinEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'Checkin.Date')
+    var checkoutEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'Checkout.Date')
+    var adultNumberEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'Adult.Number')
+
+    var country, checkin, checkout, adultNumber = ''
+    if (countryEntity != null) {
+      country = countryEntity.entity.replace(/(\s*)/g, '')
+      session.conversationData.CITYCODE = country
+    }
+    if (checkinEntity != null) {
+      checkin = checkinEntity.entity.replace(/(\s*)/g, '')
+      session.conversationData.CHECKIN = checkin
+    }
+    if (checkoutEntity != null) {
+      checkout = checkoutEntity.entity.replace(/(\s*)/g, '')
+      session.conversationData.CHECKOUT = checkout
+    }
+    if (adultNumberEntity != null) {
+      adultNumber = adultNumberEntity.entity.replace(/(\s*)/g, '')
+      session.conversationData.ADULT_OPTION = adultNumber
+    }
+
+    session.send(`현재 상태는... ${country}, ${checkin},${checkout},${adultNumber}`)
+    session.send('호텔 조회시 필수 정보들이 누락되어있습니다.')
+
+    if (!session.conversationData.CITYCODE) {
+      session.send('가시고 싶은 여행지를 선택해주세요')
+      return session.beginDialog('askCityInfo')
+    }
+
+    // if (!checkin || !checkout) {
+    //   return session.beginDialog('askBeginDate')
+    // }
+    // if (!adultNumberEntity) {
+    //   return session.beginDialog('askForPeopleNumber')
+    // }
+
+    // session.send('Search All Dialog 입니다')
+  }, function (session, results, next) {
+    // if (!session.conversationData.CITYCODE) {
+    //   return session.beginDialog('askCityInfo')
+    // }
+    session.send(results.response)
+    if (!session.conversationData.CHECKIN || !session.conversationData.CHECKOUT) {
+      session.send('체크인 및 체크아웃 날짜를 다시 입력해주세요')
+      return session.beginDialog('askBeginDate')
+    }
+    next()
+  }, function (session, results, next) {
+    session.send(results.response)
+    if (!session.conversationData.ADULT_OPTION) {
+      return session.beginDialog('askForPeopleNumber')
+    }
+    next()
+  }, function (session, results) {
+    session.send(results.response)
+
+     // 모든 조건을 만족한 경우
+    let countryCondition = '출발도시:' + session.conversationData.CITYCODE + '\n'
+    let dateCondition = '체크인:' + session.conversationData.CHECKIN + '체크아웃:' + session.conversationData.CHECKOUT + '\n'
+    let peopleCondition = session.conversationData.ADULT_OPTION + '아이1:' + session.conversationData.CHILD1_OPTION + '아이2:' + session.conversationData.CHILD2_OPTION
+    let searchCondition = countryCondition.concat(dateCondition, peopleCondition)
+
+    session.send(searchCondition)
+    session.save()
+    session.conversationData = {}
+  }
+]).triggerAction({
+  matches: 'Search.All'
+})
