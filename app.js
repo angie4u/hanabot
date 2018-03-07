@@ -71,7 +71,8 @@ bot.on('conversationUpdate', function (message) {
   }
 })
 const luis = 'https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/e3fd6d0a-9b70-4a1b-ae81-b779db93024a?subscription-key=c4ac39be736d47598ab8ca33b5cccd7c&verbose=true&timezoneOffset=0&q='
-var recognizer = new builder.LuisRecognizer(luis)
+
+var recognizer = new builder.LuisRecognizer(process.env.LUIS_MODEL_URL)
 bot.recognizer(recognizer)
 bot.on('error', function (e) {
   console.log('And error ocurred', e)
@@ -259,8 +260,10 @@ bot.dialog('LUIS_answerRefund', [
 // =========================================================
 
 var qnAMakerRecognizer = new cognitiveservices.QnAMakerRecognizer({
-  knowledgeBaseId: '5aa5a440-5939-411d-8279-3eb92e2d7253',
-  subscriptionKey: 'cc2c5764d57b4feaafa0480d0c355653',
+  // knowledgeBaseId: '5aa5a440-5939-411d-8279-3eb92e2d7253',
+  // subscriptionKey: 'cc2c5764d57b4feaafa0480d0c355653',
+  knowledgeBaseId: process.env.QNA_MAKER_KB_ID,
+  subscriptionKey: process.env.QNA_MAKER_KEY,
   top: 4
 })
 
