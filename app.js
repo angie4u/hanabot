@@ -337,7 +337,7 @@ bot.dialog('LUIS_modifyDate', [
     session.send('예약 관련 문의를 주셨군요')
   }
 ]).triggerAction({
-  matches: /^LG[0-9]+6$/i
+  matches: /^LG[0-9]+9$/i
 })
 
 bot.dialog('LUIS_answerCancel',
