@@ -229,9 +229,52 @@ bot.dialog('LUIS_searchAll', [
     session.conversationData = {}
   }
 ]).triggerAction({
-  matches: 'Search.All',
-  onse
+  matches: 'Search.All'
 })
+
+/////////////////////////////////////////
+// dw 추가 영역
+bot.dialog('LUIS_answerRefund', [
+  // function (session) {
+  //   session.send('환불 관련 문의입니다. \
+  //     예약 정보가 존재하는지 체크하고 \
+  //       예약 정보가 존재하면 결재 여부를 체크 \
+  //         결재했을 경우 환불하시겠습니까? 라고 문의 처리\
+  //           환불 문의에 환불 이라고 할경우 환불 처리\
+  //           그외의 경우 환불 안함 \
+  //         결재가 없을 경우 결재 내역이 없습니다. 라고 출력 후 종료 \
+  //       예약 정보가 없을 경우 예약건 없음 출력 후 종료'
+  //     ),
+  function (session) {
+    session.send("환불 관련 문의입니다.");
+    builder.Prompts.text(session, "예약 번호를 입력하세요.");
+  },
+  function (session, results) {
+    session.dialogData.reservationNumber = results.response;
+      if (session.dialogData.reservationNumber == '1234'){
+        session.send("예약 번호를 찾았습니다. 결재 정보를 체크 중입니다.");
+        builder.Prompts.text(session, "결재 정보가 존재합니다 결재를 취소 하시겠습니까? 예/아니오");
+      }
+      else{
+        session.send("환불 정보가 없습니다. 종료");
+        session.endDialog();
+      }
+  },
+  function (session, results) {
+    session.dialogData.reservationCancelYN = results.response;
+    if (session.dialogData.reservationCancelYN == '예'){
+      session.send(`결재를 취소하고 예약을 종료합니다.<br/> 예약번호: ${session.dialogData.reservationNumber} <br/>`);
+      session.endDialog();
+    }
+    else{
+      session.send("결재를 취소하지 않고 종료합니다.<br/> 예약번호: ${session.dialogData.reservationNumber} <br/>");
+      session.endDialog();
+    }
+  }]).triggerAction({
+  matches: 'Answer.Refund'
+})
+/////////////////////////////////////////
+// dw 추가 영역 종료
 
 bot.dialog('FAQ', [
   function (session, args) {
