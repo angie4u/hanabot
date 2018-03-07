@@ -6,6 +6,8 @@ var botbuilder_azure = require('botbuilder-azure')
 var peopleNumCard = require('./adaptiveCard/peopleNumCard_v2.js').card
 var checkinCard = require('./adaptiveCard/checkinCard.js').card
 var cityCard = require('./adaptiveCard/city2.js').card
+const https = require('https')
+var cognitiveservices = require('botbuilder-cognitiveservices')
 
 // Setup Restify Server
 var server = restify.createServer()
@@ -157,7 +159,9 @@ bot.dialog('askBeginDate', [
 // Search.All
 // 베트남 호텔에 금연룸으로 검색해줘
 bot.dialog('LUIS_searchAll', [
-  function (session, args) {
+  function (session, args, next) {
+    // loggingService(session.message.text,"N/A","N/A")
+
     var countryEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'Country')
     var regionEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'Region')
     var checkinEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'Checkin.Date')
@@ -195,17 +199,25 @@ bot.dialog('LUIS_searchAll', [
       session.send('가시고 싶은 여행지를 선택해주세요')
       return session.beginDialog('askCityInfo')
     }
+    next()
   }, function (session, results, next) {
-    session.send(results.response)
+    if (results) {
+      session.send(results.response)
+    }
+
     if (!session.conversationData.CHECKIN || !session.conversationData.CHECKOUT) {
       session.send('체크인 및 체크아웃 날짜를 다시 입력해주세요')
       return session.beginDialog('askBeginDate')
     }
     next()
   }, function (session, results, next) {
-    builder.Prompts.text(session, results.response)
+    if (results) {
+      // builder.Prompts.text(session, results.response)
+      return session.send(results.response)
+    }
+    next()
   }, function (session, results, next) {
-    if (!session.conversationData.ADULT_OPTION) {
+    if (!session.conversationData.ADULT_OPTION || (session.conversationData.ADULT_OPTION == '')) {
       return session.beginDialog('askForPeopleNumber')
     }
     next()
@@ -223,27 +235,165 @@ bot.dialog('LUIS_searchAll', [
     session.conversationData = {}
   }
 ]).triggerAction({
-  matches: 'Search.All'
+  matches: 'Search.All',
+  onSelectAction: (session, args, next) => {
+    session.beginDialog(args.action, args)
+  }
 })
 
-bot.dialog('LUIS_answerCancel', [
+/// //////////////////////////////////////
+// dw 추가 영역
+bot.dialog('LUIS_answerRefund', [
+  // function (session) {
+  //   session.send('환불 관련 문의입니다. \
+  //     예약 정보가 존재하는지 체크하고 \
+  //       예약 정보가 존재하면 결재 여부를 체크 \
+  //         결재했을 경우 환불하시겠습니까? 라고 문의 처리\
+  //           환불 문의에 환불 이라고 할경우 환불 처리\
+  //           그외의 경우 환불 안함 \
+  //         결재가 없을 경우 결재 내역이 없습니다. 라고 출력 후 종료 \
+  //       예약 정보가 없을 경우 예약건 없음 출력 후 종료'
+  //     ),
   function (session) {
-    // session.send('예약 취소 관련 문의')
-    builder.Prompt.text(session, '예약 취소 관련 문의')
-  }, function (session, results) {
-    var userResponse = results.response
-  }
-]).triggerAction({
-  matches: 'Answer.Cancel'
+    session.send('환불 관련 문의입니다.')
+    builder.Prompts.text(session, '예약 번호를 입력하세요.')
+  },
+  function (session, results) {
+    session.dialogData.reservationNumber = results.response
+    if (session.dialogData.reservationNumber == '1234') {
+      session.send('예약 번호를 찾았습니다. 결재 정보를 체크 중입니다.')
+      builder.Prompts.text(session, '결재 정보가 존재합니다 결재를 취소 하시겠습니까? 예/아니오')
+    } else {
+      session.send('환불 정보가 없습니다. 종료')
+      session.endDialog()
+    }
+  },
+  function (session, results) {
+    session.dialogData.reservationCancelYN = results.response
+    if (session.dialogData.reservationCancelYN == '예') {
+      session.send(`결재를 취소하고 예약을 종료합니다.<br/> 예약번호: ${session.dialogData.reservationNumber} <br/>`)
+      session.endDialog()
+    } else {
+      session.send(`결재를 취소하지 않고 종료합니다.<br/> 예약번호: ${session.dialogData.reservationNumber} <br/>`)
+      session.endDialog()
+    }
+  }]).triggerAction({
+    matches: 'Answer.Refund'
+  })
+/// //////////////////////////////////////
+// dw 추가 영역 종료
+
+// =========================================================
+// Bots Dialogs QnAMakerRecognizer start --추가
+// =========================================================
+
+var qnAMakerRecognizer = new cognitiveservices.QnAMakerRecognizer({
+  knowledgeBaseId: '5aa5a440-5939-411d-8279-3eb92e2d7253',
+  subscriptionKey: 'cc2c5764d57b4feaafa0480d0c355653',
+  top: 4
 })
 
-bot.dialog('FAQ', [
-  function (session, args) {
-    // faq 질문이므로 QnA Maker를 통해 처리합니다.
-    session.send('faq 질문이므로 QnA Maker를 통해 처리합니다')
-    var userQuestion = session.message.text.replace(/(\s*)/g, '')
-    console.log(userQuestion)
+var qnaMakerTools = new cognitiveservices.QnAMakerTools()
+bot.library(qnaMakerTools.createLibrary())
+
+var basicQnAMakerDialog = new cognitiveservices.QnAMakerDialog({
+  recognizers: [qnAMakerRecognizer],
+  defaultMessage: 'No match! Try changing the query terms!',
+  qnaThreshold: 0.3,
+  feedbackLib: qnaMakerTools
+})
+
+// Override to also include the knowledgebase question with the answer on confident matches
+basicQnAMakerDialog.respondFromQnAMakerResult = function (session, qnaMakerResult) {
+  var result = qnaMakerResult
+  var response = 'FAQ 질문 입니다.:  \r\n  Q: ' + result.answers[0].questions[0] + '  \r\n A: ' + result.answers[0].answer
+  session.send(response)
+}
+
+// Override to log user query and matched Q&A before ending the dialog
+basicQnAMakerDialog.defaultWaitNextMessage = function (session, qnaMakerResult) {
+  if (session.privateConversationData.qnaFeedbackUserQuestion != null && qnaMakerResult.answers != null && qnaMakerResult.answers.length > 0 &&
+      qnaMakerResult.answers[0].questions != null && qnaMakerResult.answers[0].questions.length > 0 && qnaMakerResult.answers[0].answer != null) {
+    console.log('User Query: ' + session.privateConversationData.qnaFeedbackUserQuestion)
+    console.log('KB Question: ' + qnaMakerResult.answers[0].questions[0])
+    console.log('KB Answer: ' + qnaMakerResult.answers[0].answer)
   }
-]).triggerAction({
+  session.endDialog()
+}
+
+// =========================================================
+// Bots Dialogs QnAMakerRecognizer end
+// =========================================================
+
+bot.dialog('LUIS_FAQ', basicQnAMakerDialog).triggerAction({
   matches: 'FAQ'
 })
+
+// 예약 관련 문의사항 응대 Dialog
+bot.dialog('LUIS_modifyDate', [
+  function (session, args) {
+    // 사용자가 예약 번호를 입력하거나 아님 예약관련 문의를 준 경우
+    // var userQuestion = session.message.text.replace(/(\s*)/g, '')
+    session.send('예약 관련 문의를 주셨군요')
+  }
+]).triggerAction({
+  matches: /^LG[0-9]+6$/i
+})
+
+bot.dialog('LUIS_answerCancel',
+ function (session, args, next) {
+  // Send a help message
+   session.send('네~ 고객님^^ 고객님의 예약정보가 있는지 확인해보겠습니다.<br>잠시만 기다려주세요.')
+
+   if (!checkReservedInfo()) {
+     session.endDialog('고객님 예약정보가 존재하지 않습니다.<br>이전 대화로 돌아갑니다.')
+   } else {
+     session.endDialog('고객님 예약정보가 존재합니다. 취소 안내드립니다...')
+   }
+ })
+ // Once triggered, will start a new dialog as specified by
+ // the 'onSelectAction' option.
+ .triggerAction({
+   matches: 'Answer.Cancel',
+   onSelectAction: (session, args, next) => {
+     session.beginDialog(args.action, args)
+     console.log('A2')
+   }
+ })
+
+// bot.dialog('LUIS_Try.All', [
+//   function (session, args) {
+//     session.send('고객님~ 관련 문의는 Bot에서 처리할 수가 없습니다.')
+//     session.send('하나투어 고객센터(1577-1233)로 연락주시기 바랍니다. ')
+//     session.endDialog()
+//   }
+// ]).triggerAction({
+//   matches: 'Try.All',
+//   onSelectAction: (session, args, next) => {
+//     session.beginDialog(args.action, args)
+//   }
+// })
+
+function checkReservedInfo () {
+  return false
+}
+
+// function loggingService (question, answer, confidence) {
+// //var logValue = '호텔 추천해줘/좋은 호텔이 많습니다./50';
+//   var logValue = question+'/'+answer+'/'+confidence
+//   var azureFuntionUrl = process.env.AzureFunctionUrl
+
+//   https.get(azureFuntionUrl + logValue, (resp) => {
+//     let data = '';
+
+//     // A chunk of data has been recieved.
+//     resp.on('data', (chunk) => {
+//       data += chunk;
+//     });
+
+//     // The whole response has been received. Print out the result.
+//     resp.on('end', () => {
+//       //console.log(JSON.parse(data).explanation);
+//     });
+//   }
+// }
