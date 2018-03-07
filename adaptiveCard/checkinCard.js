@@ -11,7 +11,8 @@ exports.card = {
       },
       {
         'type': 'Input.Date',
-        'id': 'checkinDate'
+        'id': 'checkinDate',
+        'data': '2018-03-07'
       },
       {
         'type': 'TextBlock',
@@ -19,7 +20,8 @@ exports.card = {
       },
       {
         'type': 'Input.Date',
-        'id': 'checkoutDate'
+        'id': 'checkoutDate',
+        'data': '2018-03-08'
       }
 
     ],

@@ -26,7 +26,6 @@ var connector = new builder.ChatConnector({
 server.post('/api/messages', connector.listen())
 
 var tableName = 'botdata'
-// const connString = 'DefaultEndpointsProtocol=https;AccountName=hanatour9833;AccountKey=6jqh42QQjWWBwoPGGR/Jr0PZjhBMZVbHm/gkhEfHvOj8aV6+oI8ed6ZAAwB5m793WqyQDiduJJB0QpseJwqYxw==;EndpointSuffix=core.windows.net'
 var azureTableClient = new botbuilder_azure.AzureTableClient(tableName, process.env.AzureWebJobsStorage)
 var tableStorage = new botbuilder_azure.AzureBotStorage({ gzipData: false }, azureTableClient)
 
@@ -37,26 +36,10 @@ var bot = new builder.UniversalBot(connector, [
   },
   function (session, results) {
     console.log('console 도시 선택=' + `${results.response}`)
-
-    // session.conversationData.CITYCODE = results.response
-    // session.send('session 정보= ' + session.conversationData.CITYCODE)
-
     session.beginDialog('askBeginDate')
   },
-  function (session, results) {
-    // 출력
-    // session.send('session 정보= ' + JSON.stringify(session.conversationData))
-
-    session.send(`체크인:${session.conversationData.CHECKIN} / 체크아웃: ${session.conversationData.CHECKOUT}`)
-    // builder.Prompts.text(session, `체크인 및 체크아웃 일정은 ${results.response}과 같습니다.`)
-    builder.Prompts.choice(session, '예약 일정이 맞습니까? ', '예|아니오', { listStyle: builder.ListStyle.button })
-  },
-  function (session, results) {
-    if (results.response.entity === '예') {
-      session.beginDialog('askForPeopleNumber')
-    } else {
-      session.replaceDialog('askBeginDate', { reprompt: true })
-    }
+  function (session) {
+    session.beginDialog('askForPeopleNumber')
   },
   function (session) {
     session.send(`${session.conversationData.ADULT_OPTION}, 아이1:${session.conversationData.CHILD1_OPTION}, 아이2:${session.conversationData.CHILD2_OPTION}`)
@@ -64,7 +47,6 @@ var bot = new builder.UniversalBot(connector, [
   },
   function (session, results, next) {
     if (results.response.entity === '예') {
-      // session.beginDialog('askForPeopleNumber')
       session.replaceDialog('askForPeopleNumber', { reprompt: true })
     }
 
@@ -77,7 +59,7 @@ var bot = new builder.UniversalBot(connector, [
     session.save()
     session.conversationData = {}
   }
-]).set('storage', tableStorage) // Register in-memory storage
+]).set('storage', tableStorage)
 
 bot.on('conversationUpdate', function (message) {
   if (message.membersAdded) {
@@ -91,7 +73,6 @@ bot.on('conversationUpdate', function (message) {
 const luis = 'https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/e3fd6d0a-9b70-4a1b-ae81-b779db93024a?subscription-key=c4ac39be736d47598ab8ca33b5cccd7c&verbose=true&timezoneOffset=0&q='
 var recognizer = new builder.LuisRecognizer(luis)
 bot.recognizer(recognizer)
-// log any bot errors into the console
 bot.on('error', function (e) {
   console.log('And error ocurred', e)
 })
@@ -122,8 +103,6 @@ bot.dialog('askForPeopleNumber', [
       } if (session.conversationData.CHILD2_OPTION === undefined) {
         session.conversationData.CHILD2_OPTION = '선택안함'
       }
-      // var peopleValue = JSON.stringify(session.message.value)
-      // session.endDialog({ response: peopleValue })
       session.endDialog()
       return
     }
@@ -143,21 +122,26 @@ bot.dialog('askBeginDate', [
       var checkinDate = session.message.value.checkinDate
       var checkoutDate = session.message.value.checkoutDate
 
-      // 일자인 저장
+      // 체크인 일자 저장
       session.conversationData.CHECKIN = checkinDate
       // 체크아웃 일자 저장
       session.conversationData.CHECKOUT = checkoutDate
 
-      return session.endDialogWithResult({ response: checkinDate, response2: checkoutDate })
+      session.send(`체크인:${checkinDate} / 체크아웃:${checkoutDate}`)
+      builder.Prompts.choice(session, '예약 일정이 맞습니까? ', '예|아니오', { listStyle: builder.ListStyle.button })
+    } else {
+      var msg = new builder.Message(session).addAttachment(checkinCard)
+      return session.send(msg)
     }
-
-    var msg = new builder.Message(session).addAttachment(checkinCard)
-    session.send(msg)
+  }, function (session, results) {
+    if (results.response.entity === '예') {
+      session.endDialog()
+    } else {
+      session.replaceDialog('askBeginDate', { reprompt: true })
+    }
   }
 ])
 
-// Search.All
-// 베트남 호텔에 금연룸으로 검색해줘
 bot.dialog('LUIS_searchAll', [
   function (session, args, next) {
     // loggingService(session.message.text,"N/A","N/A")
@@ -169,11 +153,9 @@ bot.dialog('LUIS_searchAll', [
     var adultNumberEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'Adult.Number')
     var productEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'Product.Type')
 
-    // var country, checkin, checkout, adultNumber = ''
     var country, region, checkin, checkout, adultNumber = ''
     if (countryEntity != null) {
       country = countryEntity.entity.replace(/(\s*)/g, '')
-      // session.conversationData.CITYCODE = country
     }
     if (regionEntity != null) {
       region = regionEntity.entity.replace(/(\s*)/g, '')
@@ -201,19 +183,9 @@ bot.dialog('LUIS_searchAll', [
     }
     next()
   }, function (session, results, next) {
-    if (results) {
-      session.send(results.response)
-    }
-
     if (!session.conversationData.CHECKIN || !session.conversationData.CHECKOUT) {
       session.send('체크인 및 체크아웃 날짜를 다시 입력해주세요')
       return session.beginDialog('askBeginDate')
-    }
-    next()
-  }, function (session, results, next) {
-    if (results) {
-      // builder.Prompts.text(session, results.response)
-      return session.send(results.response)
     }
     next()
   }, function (session, results, next) {
@@ -221,10 +193,9 @@ bot.dialog('LUIS_searchAll', [
       return session.beginDialog('askForPeopleNumber')
     }
     next()
+  }, function (session, results, next) {
+    next()
   }, function (session, results) {
-    // session.send(results.response)
-
-     // 모든 조건을 만족한 경우
     let countryCondition = '출발도시:' + session.conversationData.CITYCODE + '\n'
     let dateCondition = '체크인:' + session.conversationData.CHECKIN + '체크아웃:' + session.conversationData.CHECKOUT + '\n'
     let peopleCondition = session.conversationData.ADULT_OPTION + '아이1:' + session.conversationData.CHILD1_OPTION + '아이2:' + session.conversationData.CHILD2_OPTION
@@ -264,7 +235,7 @@ bot.dialog('LUIS_answerRefund', [
       session.send('예약 번호를 찾았습니다. 결재 정보를 체크 중입니다.')
       builder.Prompts.text(session, '결재 정보가 존재합니다 결재를 취소 하시겠습니까? 예/아니오')
     } else {
-      session.send('환불 정보가 없습니다. 종료')
+      session.send('환불 처리를 위한 예약정보가 없습니다. 종료')
       session.endDialog()
     }
   },
@@ -333,7 +304,6 @@ bot.dialog('LUIS_FAQ', basicQnAMakerDialog).triggerAction({
 bot.dialog('LUIS_modifyDate', [
   function (session, args) {
     // 사용자가 예약 번호를 입력하거나 아님 예약관련 문의를 준 경우
-    // var userQuestion = session.message.text.replace(/(\s*)/g, '')
     session.send('예약 관련 문의를 주셨군요')
   }
 ]).triggerAction({
@@ -360,19 +330,6 @@ bot.dialog('LUIS_answerCancel',
      console.log('A2')
    }
  })
-
-// bot.dialog('LUIS_Try.All', [
-//   function (session, args) {
-//     session.send('고객님~ 관련 문의는 Bot에서 처리할 수가 없습니다.')
-//     session.send('하나투어 고객센터(1577-1233)로 연락주시기 바랍니다. ')
-//     session.endDialog()
-//   }
-// ]).triggerAction({
-//   matches: 'Try.All',
-//   onSelectAction: (session, args, next) => {
-//     session.beginDialog(args.action, args)
-//   }
-// })
 
 function checkReservedInfo () {
   return false
