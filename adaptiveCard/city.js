@@ -19,42 +19,37 @@ exports.card = {
       {
         "type": "Action.Submit",
         "title": "도쿄",
-        "data": { "cityCode": "TYO" ,"cityName":"도쿄"}
+        "data": "TYO"
       },
       {
         "type": "Action.Submit",
         "title": "오사카",
-        "data": { "cityCode": "OSA" ,"cityName":"오사카"}
+        "data": "OSA"
       },
       {
         "type": "Action.Submit",
         "title": "오키나와",
-        "data": { "cityCode": "OKA" ,"cityName":"오키나와"}
+        "data": "OKA"
       },
       {
         "type": "Action.Submit",
         "title": "후쿠오카",
-        "data": { "cityCode": "FUK" ,"cityName":"후쿠오카"}
-      },
-      {
-        "type": "Action.Submit",
-        "title": "오키나와",
-        "data": { "cityCode": "OKA" ,"cityName":"오키나와"}
+        "data": "FUK"
       },
       {
         "type": "Action.Submit",
         "title": "삿포로",
-        "data": { "cityCode": "SPK" ,"cityName":"삿포로"}
+        "data": "SPK"
       },
       {
         "type": "Action.Submit",
         "title": "교토",
-        "data": { "cityCode": "UKY" ,"cityName":"교토"}
+        "data": "UKY"
       },
       {
         "type": "Action.Submit",
         "title": "나고야",
-        "data": { "cityCode": "NGO" ,"cityName":"나고야"}
+        "data": "NGO"
       }
     ]
   

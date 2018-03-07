@@ -3,11 +3,12 @@ require('dotenv-extended').load()
 var restify = require('restify')
 var builder = require('botbuilder')
 var botbuilder_azure = require('botbuilder-azure')
-var peopleNumCard = require('./adaptiveCard/peopleNumCard_v2.js').card
-var checkinCard = require('./adaptiveCard/checkinCard.js').card
-var cityCard = require('./adaptiveCard/city2.js').card
 const https = require('https')
 var cognitiveservices = require('botbuilder-cognitiveservices')
+
+var peopleNumCard = require('./adaptiveCard/peopleNumCard.js').card
+var checkinCard = require('./adaptiveCard/checkinCard.js').card
+var cityCard = require('./adaptiveCard/city.js').card
 
 // Setup Restify Server
 var server = restify.createServer()
@@ -70,7 +71,6 @@ bot.on('conversationUpdate', function (message) {
     })
   }
 })
-const luis = 'https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/e3fd6d0a-9b70-4a1b-ae81-b779db93024a?subscription-key=c4ac39be736d47598ab8ca33b5cccd7c&verbose=true&timezoneOffset=0&q='
 
 var recognizer = new builder.LuisRecognizer(process.env.LUIS_MODEL_URL)
 bot.recognizer(recognizer)
@@ -260,8 +260,6 @@ bot.dialog('LUIS_answerRefund', [
 // =========================================================
 
 var qnAMakerRecognizer = new cognitiveservices.QnAMakerRecognizer({
-  // knowledgeBaseId: '5aa5a440-5939-411d-8279-3eb92e2d7253',
-  // subscriptionKey: 'cc2c5764d57b4feaafa0480d0c355653',
   knowledgeBaseId: process.env.QNA_MAKER_KB_ID,
   subscriptionKey: process.env.QNA_MAKER_KEY,
   top: 4
