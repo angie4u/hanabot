@@ -229,5 +229,17 @@ bot.dialog('LUIS_searchAll', [
     session.conversationData = {}
   }
 ]).triggerAction({
-  matches: 'Search.All'
+  matches: 'Search.All',
+  onse
+})
+
+bot.dialog('FAQ', [
+  function (session, args) {
+    // faq 질문이므로 QnA Maker를 통해 처리합니다.
+    session.send('faq 질문이므로 QnA Maker를 통해 처리합니다')
+    var userQuestion = session.message.text.replace(/(\s*)/g, '')
+    console.log(userQuestion)
+  }
+]).triggerAction({
+  matches: 'FAQ'
 })
