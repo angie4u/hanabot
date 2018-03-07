@@ -36,17 +36,12 @@ var bot = new builder.UniversalBot(connector, [
   function (session, results) {
     console.log('console 도시 선택=' + `${results.response}`)
 
-    session.conversationData.CITYCODE = results.response
+    // session.conversationData.CITYCODE = results.response
     // session.send('session 정보= ' + session.conversationData.CITYCODE)
 
     session.beginDialog('askBeginDate')
   },
   function (session, results) {
-    // 일자인 저장
-    session.conversationData.CHECKIN = results.response
-    // 체크아웃 일자 저장
-    session.conversationData.CHECKOUT = results.response2
-
     // 출력
     // session.send('session 정보= ' + JSON.stringify(session.conversationData))
 
@@ -62,12 +57,6 @@ var bot = new builder.UniversalBot(connector, [
     }
   },
   function (session) {
-    // var result = results.response
-    if (session.conversationData.CHILD1_OPTION === undefined) {
-      session.conversationData.CHILD1_OPTION = '선택안함'
-    } if (session.conversationData.CHILD2_OPTION === undefined) {
-      session.conversationData.CHILD2_OPTION = '선택안함'
-    }
     session.send(`${session.conversationData.ADULT_OPTION}, 아이1:${session.conversationData.CHILD1_OPTION}, 아이2:${session.conversationData.CHILD2_OPTION}`)
     builder.Prompts.choice(session, '추가로 방을 예약하시겠습니까? ', '예|아니오', { listStyle: builder.ListStyle.button })
   },
@@ -106,13 +95,13 @@ bot.on('error', function (e) {
 })
 
 bot.dialog('askCityInfo', [
-
   function (session) {
     var msg = new builder.Message(session).addAttachment(cityCard)
     session.send(msg)
     builder.Prompts.text(session, '원하는 내용을 선택하시기 바랍니다!')
   }, function (session, results) {
     console.log(results)
+    session.conversationData.CITYCODE = results.response
     session.endDialogWithResult({response: results.response})
   }
 ])
@@ -126,6 +115,11 @@ bot.dialog('askForPeopleNumber', [
       session.conversationData.CHILD1_OPTION = session.message.value.child1_option
       session.conversationData.CHILD2_OPTION = session.message.value.child2_option
 
+      if (session.conversationData.CHILD1_OPTION === undefined) {
+        session.conversationData.CHILD1_OPTION = '선택안함'
+      } if (session.conversationData.CHILD2_OPTION === undefined) {
+        session.conversationData.CHILD2_OPTION = '선택안함'
+      }
       // var peopleValue = JSON.stringify(session.message.value)
       // session.endDialog({ response: peopleValue })
       session.endDialog()
@@ -147,8 +141,12 @@ bot.dialog('askBeginDate', [
       var checkinDate = session.message.value.checkinDate
       var checkoutDate = session.message.value.checkoutDate
 
-      session.endDialogWithResult({ response: checkinDate, response2: checkoutDate })
-      return
+      // 일자인 저장
+      session.conversationData.CHECKIN = checkinDate
+      // 체크아웃 일자 저장
+      session.conversationData.CHECKOUT = checkoutDate
+
+      return session.endDialogWithResult({ response: checkinDate, response2: checkoutDate })
     }
 
     var msg = new builder.Message(session).addAttachment(checkinCard)
@@ -161,14 +159,21 @@ bot.dialog('askBeginDate', [
 bot.dialog('LUIS_searchAll', [
   function (session, args) {
     var countryEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'Country')
+    var regionEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'Region')
     var checkinEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'Checkin.Date')
     var checkoutEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'Checkout.Date')
     var adultNumberEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'Adult.Number')
+    var productEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'Product.Type')
 
-    var country, checkin, checkout, adultNumber = ''
+    // var country, checkin, checkout, adultNumber = ''
+    var country, region, checkin, checkout, adultNumber = ''
     if (countryEntity != null) {
       country = countryEntity.entity.replace(/(\s*)/g, '')
-      session.conversationData.CITYCODE = country
+      // session.conversationData.CITYCODE = country
+    }
+    if (regionEntity != null) {
+      region = regionEntity.entity.replace(/(\s*)/g, '')
+      session.conversationData.CITYCODE = region
     }
     if (checkinEntity != null) {
       checkin = checkinEntity.entity.replace(/(\s*)/g, '')
@@ -183,26 +188,14 @@ bot.dialog('LUIS_searchAll', [
       session.conversationData.ADULT_OPTION = adultNumber
     }
 
-    session.send(`현재 상태는... ${country}, ${checkin},${checkout},${adultNumber}`)
+    session.send(`현재 상태는... 국가:${country},지역:${region},체크인:${checkin},체크아웃:${checkout},인원:${adultNumber}`)
     session.send('호텔 조회시 필수 정보들이 누락되어있습니다.')
 
     if (!session.conversationData.CITYCODE) {
       session.send('가시고 싶은 여행지를 선택해주세요')
       return session.beginDialog('askCityInfo')
     }
-
-    // if (!checkin || !checkout) {
-    //   return session.beginDialog('askBeginDate')
-    // }
-    // if (!adultNumberEntity) {
-    //   return session.beginDialog('askForPeopleNumber')
-    // }
-
-    // session.send('Search All Dialog 입니다')
   }, function (session, results, next) {
-    // if (!session.conversationData.CITYCODE) {
-    //   return session.beginDialog('askCityInfo')
-    // }
     session.send(results.response)
     if (!session.conversationData.CHECKIN || !session.conversationData.CHECKOUT) {
       session.send('체크인 및 체크아웃 날짜를 다시 입력해주세요')
@@ -210,13 +203,14 @@ bot.dialog('LUIS_searchAll', [
     }
     next()
   }, function (session, results, next) {
-    session.send(results.response)
+    builder.Prompts.text(session, results.response)
+  }, function (session, results, next) {
     if (!session.conversationData.ADULT_OPTION) {
       return session.beginDialog('askForPeopleNumber')
     }
     next()
   }, function (session, results) {
-    session.send(results.response)
+    // session.send(results.response)
 
      // 모든 조건을 만족한 경우
     let countryCondition = '출발도시:' + session.conversationData.CITYCODE + '\n'
@@ -229,8 +223,18 @@ bot.dialog('LUIS_searchAll', [
     session.conversationData = {}
   }
 ]).triggerAction({
-  matches: 'Search.All',
-  onse
+  matches: 'Search.All'
+})
+
+bot.dialog('LUIS_answerCancel', [
+  function (session) {
+    // session.send('예약 취소 관련 문의')
+    builder.Prompt.text(session, '예약 취소 관련 문의')
+  }, function (session, results) {
+    var userResponse = results.response
+  }
+]).triggerAction({
+  matches: 'Answer.Cancel'
 })
 
 bot.dialog('FAQ', [
