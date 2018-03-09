@@ -24,32 +24,32 @@ exports.card = {
       {
         "type": "Action.Submit",
         "title": "오사카",
-        "data": "OSA"
+        "data": "오사카"
       },
       {
         "type": "Action.Submit",
         "title": "오키나와",
-        "data": "OKA"
+        "data": "오키나와"
       },
       {
         "type": "Action.Submit",
         "title": "후쿠오카",
-        "data": "FUK"
+        "data": "후쿠오카"
       },
       {
         "type": "Action.Submit",
         "title": "삿포로",
-        "data": "SPK"
+        "data": "삿포로"
       },
       {
         "type": "Action.Submit",
         "title": "교토",
-        "data": "UKY"
+        "data": "교토"
       },
       {
         "type": "Action.Submit",
         "title": "나고야",
-        "data": "NGO"
+        "data": "나고야"
       }
     ]
   
