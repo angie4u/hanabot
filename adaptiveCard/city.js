@@ -19,7 +19,7 @@ exports.card = {
       {
         "type": "Action.Submit",
         "title": "도쿄",
-        "data": "TYO"
+        "data": "도쿄"
       },
       {
         "type": "Action.Submit",
